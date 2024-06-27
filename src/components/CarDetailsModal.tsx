@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,8 +10,8 @@ import {
   Box,
   CircularProgress,
 } from "@mui/material";
-import { useForm, Controller } from "react-hook-form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { atom, useAtom } from "jotai";
 import {
   sendContactForm,
   FormData,
@@ -23,51 +23,83 @@ interface CarDetailsModalProps {
   open: boolean;
   car: Car | undefined;
   onClose: () => void;
+  onFormSubmit: () => void;
 }
+
+const firstNameAtom = atom("");
+const lastNameAtom = atom("");
+const contactAtom = atom("");
+const messageAtom = atom("");
 
 export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   open,
   car,
   onClose,
+  onFormSubmit,
 }) => {
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<FormData>({
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      contact: "",
-      message: "",
-    },
+  const queryClient = useQueryClient();
+  const [firstName, setFirstName] = useAtom(firstNameAtom);
+  const [lastName, setLastName] = useAtom(lastNameAtom);
+  const [contact, setContact] = useAtom(contactAtom);
+  const [message, setMessage] = useAtom(messageAtom);
+  const [prevCar, setPrevCar] = useState<Car | undefined>(undefined);
+  const [isTouched, setIsTouched] = useState({
+    firstName: false,
+    lastName: false,
+    contact: false,
+    message: false,
   });
 
   const mutation = useMutation<ResponseData, Error, FormData>({
     mutationFn: sendContactForm,
-    onSuccess: (data) => {
-      reset();
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["cars"] });
+      resetForm();
+      onFormSubmit();
     },
     onError: (error) => {
       console.error(error);
     },
   });
 
-  const onSubmit = (data: FormData) => {
-    mutation.mutate(data);
+  const resetForm = () => {
+    setFirstName("");
+    setLastName("");
+    setContact("");
+    setMessage("");
+    setIsTouched({
+      firstName: false,
+      lastName: false,
+      contact: false,
+      message: false,
+    });
   };
 
-  React.useEffect(() => {
-    if (car) {
-      reset({
-        firstName: "",
-        lastName: "",
-        contact: "",
-        message: "",
-      });
+  if (car && car !== prevCar) {
+    setPrevCar(car);
+    resetForm();
+  }
+
+  const handleBlur = (field: string) => {
+    setIsTouched((prevState) => ({ ...prevState, [field]: true }));
+  };
+
+  const validate = () => {
+    return firstName && lastName && /^[0-9]{10}$/.test(contact) && message;
+  };
+
+  const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (validate()) {
+      const data: FormData = {
+        firstName,
+        lastName,
+        contact,
+        message,
+      };
+      mutation.mutate(data);
     }
-  }, [car, reset]);
+  };
 
   if (!car) {
     return (
@@ -100,94 +132,73 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
         </Typography>
         <Box mt={4}>
           <Typography variant="h6">Customer Information</Typography>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <Controller
-              name="firstName"
-              control={control}
-              rules={{ required: "First name is required" }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Customer First Name"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.firstName}
-                  helperText={errors.firstName?.message}
-                />
-              )}
+          <form onSubmit={onSubmit}>
+            <TextField
+              label="Customer First Name"
+              fullWidth
+              margin="normal"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              onBlur={() => handleBlur("firstName")}
+              error={!firstName && isTouched.firstName}
+              helperText={
+                !firstName && isTouched.firstName
+                  ? "First name is required"
+                  : ""
+              }
             />
-            <Controller
-              name="lastName"
-              control={control}
-              rules={{ required: "Last name is required" }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Customer Last Name"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.lastName}
-                  helperText={errors.lastName?.message}
-                />
-              )}
+            <TextField
+              label="Customer Last Name"
+              fullWidth
+              margin="normal"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              onBlur={() => handleBlur("lastName")}
+              error={!lastName && isTouched.lastName}
+              helperText={
+                !lastName && isTouched.lastName ? "Last name is required" : ""
+              }
             />
-            <Controller
-              name="contact"
-              control={control}
-              rules={{
-                required: "Contact number is required",
-                pattern: {
-                  value: /^[0-9]{10}$/,
-                  message: "Contact number must be 10 digits",
-                },
-              }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Customer Contact Number"
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.contact}
-                  helperText={errors.contact?.message}
-                />
-              )}
+            <TextField
+              label="Customer Contact Number"
+              fullWidth
+              margin="normal"
+              value={contact}
+              onChange={(e) => setContact(e.target.value)}
+              onBlur={() => handleBlur("contact")}
+              error={
+                (!contact || !/^[0-9]{10}$/.test(contact)) && isTouched.contact
+              }
+              helperText={
+                !contact && isTouched.contact
+                  ? "Contact number is required"
+                  : !/^[0-9]{10}$/.test(contact) && isTouched.contact
+                  ? "Contact number must be 10 digits"
+                  : ""
+              }
             />
-            <Controller
-              name="message"
-              control={control}
-              rules={{ required: "Message is required" }}
-              render={({ field }) => (
-                <TextField
-                  {...field}
-                  label="Customer Message"
-                  fullWidth
-                  multiline
-                  rows={4}
-                  margin="normal"
-                  error={!!errors.message}
-                  helperText={errors.message?.message}
-                />
-              )}
+            <TextField
+              label="Customer Message"
+              fullWidth
+              multiline
+              rows={4}
+              margin="normal"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onBlur={() => handleBlur("message")}
+              error={!message && isTouched.message}
+              helperText={
+                !message && isTouched.message ? "Message is required" : ""
+              }
             />
-            {mutation.isError && (
-              <Typography color="error" sx={{ mt: 2 }}>
-                {mutation.error?.message ||
-                  "Failed to send your message. Please try again later."}
-              </Typography>
-            )}
-            {mutation.isSuccess && (
-              <Typography color="primary" sx={{ mt: 2 }}>
-                {mutation.data?.message}
-              </Typography>
-            )}
             <Button
               type="submit"
               variant="contained"
               color="primary"
               fullWidth
-              disabled={mutation.isPending}
+              disabled={!validate()}
             >
-              {mutation.isPending ? <CircularProgress size={24} /> : "Send"}
+              Send
             </Button>
           </form>
         </Box>
