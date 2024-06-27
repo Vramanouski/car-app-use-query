@@ -4,12 +4,10 @@ import { Footer } from "./Footer";
 import { Box } from "@mui/material";
 import { ButtonGetCars } from "./ButtonGetCars";
 import "../index.css";
-import { useCars } from "../hooks/api/useAllCarsList";
 import { CardCarsList } from "./CardCarsList";
 
 export const MainPage = () => {
   const [isCardCarsListOpen, setIsCarsListOpen] = useState(false);
-  const { data, error, isLoading } = useCars(isCardCarsListOpen);
 
   const handleButtonGetCarsClick = () => {
     setIsCarsListOpen((prevState) => !prevState);
@@ -28,12 +26,7 @@ export const MainPage = () => {
           alignItems: "center",
         }}
       >
-        <CardCarsList
-          isOpen={isCardCarsListOpen}
-          cars={data}
-          isLoading={isLoading}
-          error={error}
-        />
+        {isCardCarsListOpen && <CardCarsList />}
         <ButtonGetCars
           onClick={handleButtonGetCarsClick}
           text={isCardCarsListOpen ? "Close" : "Get list of cars"}
