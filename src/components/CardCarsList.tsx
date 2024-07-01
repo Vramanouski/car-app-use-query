@@ -39,7 +39,6 @@ export const CardCarsList: React.FC<CardCarsListProps> = ({ onClose }) => {
   const handleFormSubmit = () => {
     setSelectedCarId(null);
     setIsModalOpen(false);
-    onClose();
   };
 
   if (isLoading) return <CircularProgress />;

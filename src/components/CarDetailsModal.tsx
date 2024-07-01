@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -52,6 +53,7 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   const [form, setForm] = useAtom(formAtom);
   const resetForm = useResetAtom(formAtom);
   const { errors, validateForm } = useValidation(formSchema);
+  const [isFormValid, setIsFormValid] = useState(false);
 
   const mutation = useMutation<ResponseData, Error, FormData>({
     mutationFn: sendContactForm,
@@ -67,15 +69,24 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
 
   const handleChange =
     (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
-      setForm((prevForm) => ({ ...prevForm, [field]: event.target.value }));
+      const { value } = event.target;
+      setForm((prevForm) => {
+        const updatedForm = { ...prevForm, [field]: value };
+        setIsFormValid(validateForm(updatedForm));
+        return updatedForm;
+      });
     };
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (validateForm(form)) {
+    if (isFormValid) {
       mutation.mutate(form);
     }
   };
+
+  useEffect(() => {
+    setIsFormValid(validateForm(form));
+  }, [form, validateForm]);
 
   if (!car) {
     return (
@@ -147,14 +158,26 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
               error={!!errors.message}
               helperText={errors.message}
             />
-            <Button type="submit" variant="contained" color="primary" fullWidth>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              fullWidth
+              disabled={!isFormValid}
+            >
               Send
             </Button>
           </form>
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose} color="primary">
+        <Button
+          onClick={() => {
+            onClose();
+            resetForm();
+          }}
+          color="primary"
+        >
           Close
         </Button>
       </DialogActions>
