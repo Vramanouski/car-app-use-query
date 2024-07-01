@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   Box,
   CircularProgress,
@@ -9,23 +9,18 @@ import {
   Paper,
 } from "@mui/material";
 import { CarDetailsModal } from "./CarDetailsModal";
-import { Car } from "../api/carsApi";
 import { useCarInfo } from "../hooks/api/useCarInfo";
+import { useCars } from "../hooks/api/useAllCarsList";
 
 interface CardCarsListProps {
-  cars: Car[];
   onClose: () => void;
-  onFormSubmit: () => void;
 }
 
-export const CardCarsList: React.FC<CardCarsListProps> = ({
-  cars,
-  onClose,
-  onFormSubmit,
-}) => {
+export const CardCarsList: React.FC<CardCarsListProps> = ({ onClose }) => {
   const [selectedCarId, setSelectedCarId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { data: cars, error, isLoading } = useCars();
   const {
     data: selectedCar,
     error: carError,
@@ -44,48 +39,47 @@ export const CardCarsList: React.FC<CardCarsListProps> = ({
     setIsModalOpen(false);
   }, []);
 
-  const handleFormSubmitInternal = useCallback(() => {
+  const handleFormSubmit = useCallback(() => {
     setSelectedCarId(null);
     setIsModalOpen(false);
-    onFormSubmit();
-  }, [onFormSubmit]);
+    onClose();
+  }, [onClose]);
 
-  const memoizedCars = useMemo(() => {
-    return cars?.map((car) => (
-      <Grid item xs={12} sm={6} md={6} key={car.id}>
-        <Paper
-          elevation={3}
-          sx={{ padding: 2, display: "flex", alignItems: "center" }}
-        >
-          <FormControlLabel
-            control={
-              <Radio
-                checked={selectedCarId === car.id}
-                onChange={handleRadioChange}
-                value={car.id}
-                name="car-radio-button"
-              />
-            }
-            label=""
-            sx={{ marginRight: 2 }}
-          />
-          <Box>
-            <Typography variant="body1" component="div">
-              {car.car} {car.car_model}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Year: {car.car_model_year}, Price: {car.price}
-            </Typography>
-          </Box>
-        </Paper>
-      </Grid>
-    ));
-  }, [cars, selectedCarId, handleRadioChange]);
+  if (isLoading) return <CircularProgress />;
+  if (error) return <Typography color="error">{error.message}</Typography>;
 
   return (
     <Box>
       <Grid container spacing={2}>
-        {memoizedCars}
+        {cars?.map((car) => (
+          <Grid item xs={12} sm={6} md={6} key={car.id}>
+            <Paper
+              elevation={3}
+              sx={{ padding: 2, display: "flex", alignItems: "center" }}
+            >
+              <FormControlLabel
+                control={
+                  <Radio
+                    checked={selectedCarId === car.id}
+                    onChange={handleRadioChange}
+                    value={car.id}
+                    name="car-radio-button"
+                  />
+                }
+                label=""
+                sx={{ marginRight: 2 }}
+              />
+              <Box>
+                <Typography variant="body1" component="div">
+                  {car.car} {car.car_model}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Year: {car.car_model_year}, Price: {car.price}
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
       </Grid>
       {isFetchingCar && <CircularProgress />}
       {carError && <Typography color="error">{carError.message}</Typography>}
@@ -93,7 +87,7 @@ export const CardCarsList: React.FC<CardCarsListProps> = ({
         open={isModalOpen}
         car={selectedCar}
         onClose={handleCloseModal}
-        onFormSubmit={handleFormSubmitInternal}
+        onFormSubmit={handleFormSubmit}
       />
     </Box>
   );
