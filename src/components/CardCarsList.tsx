@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   Box,
   CircularProgress,
@@ -27,23 +27,20 @@ export const CardCarsList: React.FC<CardCarsListProps> = ({ onClose }) => {
     isLoading: isFetchingCar,
   } = useCarInfo(selectedCarId);
 
-  const handleRadioChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      setSelectedCarId(Number(event.target.value));
-      setIsModalOpen(true);
-    },
-    []
-  );
+  const handleRadioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedCarId(Number(event.target.value));
+    setIsModalOpen(true);
+  };
 
-  const handleCloseModal = useCallback(() => {
+  const handleCloseModal = () => {
     setIsModalOpen(false);
-  }, []);
+  };
 
-  const handleFormSubmit = useCallback(() => {
+  const handleFormSubmit = () => {
     setSelectedCarId(null);
     setIsModalOpen(false);
     onClose();
-  }, [onClose]);
+  };
 
   if (isLoading) return <CircularProgress />;
   if (error) return <Typography color="error">{error.message}</Typography>;

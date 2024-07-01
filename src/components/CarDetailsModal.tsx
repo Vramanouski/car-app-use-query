@@ -1,4 +1,3 @@
-import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -11,7 +10,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { atom, useAtom } from "jotai";
+import { useAtom } from "jotai";
+import { atomWithReset, useResetAtom } from "jotai/utils";
+import { z } from "zod";
+import { useValidation } from "../hooks/validation/useValidation";
 import {
   sendContactForm,
   FormData,
@@ -26,10 +28,19 @@ interface CarDetailsModalProps {
   onFormSubmit: () => void;
 }
 
-const firstNameAtom = atom("");
-const lastNameAtom = atom("");
-const contactAtom = atom("");
-const messageAtom = atom("");
+const formSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  contact: z.string().regex(/^[0-9]{10}$/, "Contact number must be 10 digits"),
+  message: z.string().min(1, "Message is required"),
+});
+
+const formAtom = atomWithReset({
+  firstName: "",
+  lastName: "",
+  contact: "",
+  message: "",
+});
 
 export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   open,
@@ -38,17 +49,9 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   onFormSubmit,
 }) => {
   const queryClient = useQueryClient();
-  const [firstName, setFirstName] = useAtom(firstNameAtom);
-  const [lastName, setLastName] = useAtom(lastNameAtom);
-  const [contact, setContact] = useAtom(contactAtom);
-  const [message, setMessage] = useAtom(messageAtom);
-  const [prevCar, setPrevCar] = useState<Car | undefined>(undefined);
-  const [isTouched, setIsTouched] = useState({
-    firstName: false,
-    lastName: false,
-    contact: false,
-    message: false,
-  });
+  const [form, setForm] = useAtom(formAtom);
+  const resetForm = useResetAtom(formAtom);
+  const { errors, validateForm } = useValidation(formSchema);
 
   const mutation = useMutation<ResponseData, Error, FormData>({
     mutationFn: sendContactForm,
@@ -62,42 +65,15 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
     },
   });
 
-  const resetForm = () => {
-    setFirstName("");
-    setLastName("");
-    setContact("");
-    setMessage("");
-    setIsTouched({
-      firstName: false,
-      lastName: false,
-      contact: false,
-      message: false,
-    });
-  };
-
-  if (car && car !== prevCar) {
-    setPrevCar(car);
-    resetForm();
-  }
-
-  const handleBlur = (field: string) => {
-    setIsTouched((prevState) => ({ ...prevState, [field]: true }));
-  };
-
-  const validate = () => {
-    return firstName && lastName && /^[0-9]{10}$/.test(contact) && message;
-  };
+  const handleChange =
+    (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
+      setForm((prevForm) => ({ ...prevForm, [field]: event.target.value }));
+    };
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (validate()) {
-      const data: FormData = {
-        firstName,
-        lastName,
-        contact,
-        message,
-      };
-      mutation.mutate(data);
+    if (validateForm(form)) {
+      mutation.mutate(form);
     }
   };
 
@@ -137,45 +113,28 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
               label="Customer First Name"
               fullWidth
               margin="normal"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              onBlur={() => handleBlur("firstName")}
-              error={!firstName && isTouched.firstName}
-              helperText={
-                !firstName && isTouched.firstName
-                  ? "First name is required"
-                  : ""
-              }
+              value={form.firstName}
+              onChange={handleChange("firstName")}
+              error={!!errors.firstName}
+              helperText={errors.firstName}
             />
             <TextField
               label="Customer Last Name"
               fullWidth
               margin="normal"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              onBlur={() => handleBlur("lastName")}
-              error={!lastName && isTouched.lastName}
-              helperText={
-                !lastName && isTouched.lastName ? "Last name is required" : ""
-              }
+              value={form.lastName}
+              onChange={handleChange("lastName")}
+              error={!!errors.lastName}
+              helperText={errors.lastName}
             />
             <TextField
               label="Customer Contact Number"
               fullWidth
               margin="normal"
-              value={contact}
-              onChange={(e) => setContact(e.target.value)}
-              onBlur={() => handleBlur("contact")}
-              error={
-                (!contact || !/^[0-9]{10}$/.test(contact)) && isTouched.contact
-              }
-              helperText={
-                !contact && isTouched.contact
-                  ? "Contact number is required"
-                  : !/^[0-9]{10}$/.test(contact) && isTouched.contact
-                  ? "Contact number must be 10 digits"
-                  : ""
-              }
+              value={form.contact}
+              onChange={handleChange("contact")}
+              error={!!errors.contact}
+              helperText={errors.contact}
             />
             <TextField
               label="Customer Message"
@@ -183,21 +142,12 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
               multiline
               rows={4}
               margin="normal"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onBlur={() => handleBlur("message")}
-              error={!message && isTouched.message}
-              helperText={
-                !message && isTouched.message ? "Message is required" : ""
-              }
+              value={form.message}
+              onChange={handleChange("message")}
+              error={!!errors.message}
+              helperText={errors.message}
             />
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              fullWidth
-              disabled={!validate()}
-            >
+            <Button type="submit" variant="contained" color="primary" fullWidth>
               Send
             </Button>
           </form>
