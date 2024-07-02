@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -52,8 +51,7 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   const queryClient = useQueryClient();
   const [form, setForm] = useAtom(formAtom);
   const resetForm = useResetAtom(formAtom);
-  const { errors, validateForm } = useValidation(formSchema);
-  const [isFormValid, setIsFormValid] = useState(false);
+  const { errors, isValid } = useValidation(formSchema, form);
 
   const mutation = useMutation<ResponseData, Error, FormData>({
     mutationFn: sendContactForm,
@@ -70,23 +68,18 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
   const handleChange =
     (field: keyof FormData) => (event: React.ChangeEvent<HTMLInputElement>) => {
       const { value } = event.target;
-      setForm((prevForm) => {
-        const updatedForm = { ...prevForm, [field]: value };
-        setIsFormValid(validateForm(updatedForm));
-        return updatedForm;
-      });
+      setForm((prevForm) => ({
+        ...prevForm,
+        [field]: value,
+      }));
     };
 
   const onSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isFormValid) {
+    if (isValid) {
       mutation.mutate(form);
     }
   };
-
-  useEffect(() => {
-    setIsFormValid(validateForm(form));
-  }, [form, validateForm]);
 
   if (!car) {
     return (
@@ -163,7 +156,7 @@ export const CarDetailsModal: React.FC<CarDetailsModalProps> = ({
               variant="contained"
               color="primary"
               fullWidth
-              disabled={!isFormValid}
+              disabled={!isValid}
             >
               Send
             </Button>

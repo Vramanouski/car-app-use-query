@@ -1,29 +1,28 @@
-import { useState } from "react";
-import { ZodSchema, ZodError } from "zod";
+import { useMemo } from "react";
+import { ZodSchema } from "zod";
 
 export const useValidation = <T extends Record<string, any>>(
-  schema: ZodSchema<T>
+  schema: ZodSchema<T>,
+  data: T
 ) => {
-  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const { errors, isValid } = useMemo(() => {
+    const result = schema.safeParse(data);
+    const newErrors: Partial<Record<keyof T, string>> = {};
 
-  const validateForm = (data: T) => {
-    try {
-      schema.parse(data);
-      setErrors({});
-      return true;
-    } catch (e) {
-      const error = e as ZodError;
-      const newErrors: Partial<Record<keyof T, string>> = {};
-      for (const err of error.errors) {
+    if (!result.success) {
+      result.error.errors.forEach((err) => {
         newErrors[err.path[0] as keyof T] = err.message;
-      }
-      setErrors(newErrors);
-      return false;
+      });
     }
-  };
+
+    return {
+      errors: newErrors,
+      isValid: result.success,
+    };
+  }, [data, schema]);
 
   return {
     errors,
-    validateForm,
+    isValid,
   };
 };

@@ -9,10 +9,8 @@ const getRandomCars = (cars: Car[], count: number): Car[] => {
 export const useCars = (): UseQueryResult<Car[], Error> => {
   return useQuery<Car[], Error>({
     queryKey: ["cars"],
-    queryFn: async () => {
-      const cars = await fetchCars();
-      return getRandomCars(cars, 10);
-    },
+    queryFn: fetchCars,
+    select: (data) => getRandomCars(data, 10),
     enabled: true,
   });
 };
